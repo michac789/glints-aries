@@ -7,9 +7,11 @@ import { ActivatorTextInput, OptionList } from './components';
 import {
   ActivatorSelectContext,
   ActivatorTextInputContext,
+  SearchableSelectState,
 } from './components/Activator/ActivatorContext';
 import { ActivatorSelect } from './components/Activator/ActivatorSelect';
 import { Label } from './components/Label/Label';
+import { OptionListContext } from './components/OptionList/OptionListContext';
 import { ActivatorWrapper, HelpTextContainer } from './SelectStyle';
 
 interface SearchableProps {
@@ -31,6 +33,7 @@ export interface SelectProps {
   onSelect?({ value }: { value: string }): void;
   options?: Option[];
   placeholder?: string;
+  searchable?: boolean;
   /** sets whether to be able to type in to search from the options*/
   searchableProps?: SearchableProps;
   /** true = Allow vertical scroll, default by 6 options. */
@@ -53,6 +56,7 @@ export const Select = ({
   options,
   placeholder,
   listHeight,
+  searchable,
   searchableProps,
   scrollable,
   sections,
@@ -61,10 +65,32 @@ export const Select = ({
 }: SelectProps) => {
   const [popoverActive, setPopoverActive] = useState(false);
   const [optionListHeight, setOptionListHeight] = useState('');
+  const [menuOptions, setMenuOptions] = useState(options);
+  const [searchableSelectState, setSearchableSelectState] =
+    useState<SearchableSelectState>({
+      showSelected: false,
+      showInput: true,
+      showPlaceholder: true,
+    });
+
+  const updateSearchableSelectState = useCallback(
+    (newState: SearchableSelectState) => {
+      setSearchableSelectState(newState);
+    },
+    [setSearchableSelectState]
+  );
+
+  const updateMenuOptions = useCallback(
+    (newState: Option[]) => {
+      setMenuOptions(newState);
+    },
+    [setMenuOptions]
+  );
 
   const handleClose = useCallback(() => {
     setPopoverActive(false);
     onClose?.();
+    console.log('handleClose');
   }, [onClose]);
 
   const handleFocus = () => {
@@ -86,7 +112,6 @@ export const Select = ({
     disabled,
     hasError,
     onSelectClick: handleSelectClick,
-    selectedValues,
   };
 
   const activatorTextInputContextValue = {
@@ -94,6 +119,14 @@ export const Select = ({
     hasError,
     onFocus: handleFocus,
     onBlur: handleBlur,
+    searchableSelectState,
+    updateSearchableSelectState,
+  };
+
+  const optionListContextValue = {
+    options,
+    menuOptions,
+    updateMenuOptions,
   };
 
   useEffect(() => {
@@ -111,17 +144,19 @@ export const Select = ({
   }, [listHeight, scrollable]);
 
   const activator = () => {
-    if (searchableProps) {
-      const { inputValue, onInputChange } = searchableProps;
+    if (searchable || searchableProps) {
       return (
         <ActivatorTextInputContext.Provider
           value={activatorTextInputContextValue}
         >
           <ActivatorTextInput
-            value={inputValue}
-            onChange={onInputChange}
+            allowMultiple={allowMultiple}
+            value={searchableProps?.inputValue}
+            onChange={searchableProps?.onInputChange}
             placeholder={placeholder ?? 'Search'}
             width={width}
+            selectedValues={selectedValues}
+            onSelect={onSelect}
           />
         </ActivatorTextInputContext.Provider>
       );
@@ -141,40 +176,46 @@ export const Select = ({
   };
 
   return (
-    <Popover
-      active={popoverActive}
-      activator={
-        <ActivatorWrapper width={width}>
-          {label && <Label>{label}</Label>}
-          {activator()}
-          {helpText && (
-            <HelpTextContainer>
-              <Typography
-                as="span"
-                variant="subtitle2"
-                color={disabled ? Neutral.B85 : Neutral.B40}
-              >
-                {helpText}
-              </Typography>
-            </HelpTextContainer>
-          )}
-        </ActivatorWrapper>
-      }
-      onClose={handleClose}
-      autofocusTarget="none"
-      preventFocusOnClose
-      fullWidth
-    >
-      <Popover.Pane height={optionListHeight}>
-        <OptionList
-          allowMultiple={allowMultiple}
-          onSelect={onSelect}
-          options={options}
-          sections={sections}
-          selectedValues={selectedValues}
-          width={width}
-        />
-      </Popover.Pane>
-    </Popover>
+    <OptionListContext.Provider value={optionListContextValue}>
+      <Popover
+        active={popoverActive}
+        activator={
+          <ActivatorWrapper width={width}>
+            {label && <Label>{label}</Label>}
+            {activator()}
+            {helpText && (
+              <HelpTextContainer>
+                <Typography
+                  as="span"
+                  variant="subtitle2"
+                  color={disabled ? Neutral.B85 : Neutral.B40}
+                >
+                  {helpText}
+                </Typography>
+              </HelpTextContainer>
+            )}
+          </ActivatorWrapper>
+        }
+        onClose={handleClose}
+        autofocusTarget="none"
+        preventFocusOnClose
+        fullWidth
+      >
+        <Popover.Pane height={optionListHeight}>
+          <ActivatorTextInputContext.Provider
+            value={activatorTextInputContextValue}
+          >
+            <OptionList
+              allowMultiple={allowMultiple}
+              onSelect={onSelect}
+              sections={sections}
+              selectedValues={selectedValues}
+              width={width}
+              onMenuClose={handleClose}
+            />
+          </ActivatorTextInputContext.Provider>
+        </Popover.Pane>
+      </Popover>
+    </OptionListContext.Provider>
   );
 };
