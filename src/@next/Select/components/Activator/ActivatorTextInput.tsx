@@ -79,12 +79,10 @@ export const ActivatorTextInput = ({
           ref={activatorRef}
           prefix={<Icon name="ri-search" />}
           filterOptions={filterOptions}
-          onFocus={onFocus}
           onSelect={onSelect}
           error={hasError}
           disabled={disabled}
           selectedValue={hasSelectedValues ? selectedValues[0] : null}
-          hasSelectedValues={hasSelectedValues}
           width={width}
         />
       )}
